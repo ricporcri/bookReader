@@ -1,16 +1,18 @@
 #!/bin/sh
 #
-# xxxx      This shell script takes care of starting and stopping
-#             standalone xxxx.
-#		Las lineas siguientes aunque son comentarios las utilizan
-#		otros programas y son necesarias.
-# chkconfig: - 60 50
-# description: Descripcion del servicio. Esta linea debe existir.
-# processname: xxxx
-# config: /etc/xxxx.conf
+# reader      This shell script takes care of starting and stopping
+#             the bookReader.
+# chkconfig: 2345 90 90
+# description: Service which convert a physical book (photos) to PDF.
+# processname: reader
+# config: /etc/reader.conf
 
 # Source function library.
 . /etc/rc.d/init.d/functions
+
+#Source the functions library.
+FOLDER_1=""
+FOLDER_2=""
 
 # Source networking configuration.
 . /etc/sysconfig/network
@@ -18,21 +20,19 @@
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 
-#Valor de retorno, utilizado para indicar si hay error.
+#Variable uses to indicate if an error occurs.
 RETVAL=0 
-prog="xxxxd"
+prog="readerd"
 
 start() {
         # Start daemons.
         echo $"Starting $prog: "
-        #Comando para arrancar el servicio, por ejemplo /bin/xxxx o usar
-        # la funcion daemon definida en /etc/rc.d/init.d/functions
+        #Run the service
         RETVAL=$?
         [ $RETVAL -eq 0 ] && {
         	touch /var/lock/subsys/$prog
-        	success $"$prog" 
+        	success $"$prog"
         } 
-        echo
         return $RETVAL
 }
 
@@ -42,7 +42,7 @@ stop() {
         killproc $prog
         RETVAL=$?
         [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
-        echo
+        echo "Parando el servicio"
         return $RETVAL
 }
 
@@ -50,7 +50,10 @@ stop() {
 case "$1" in
   start)
         start
-        ;;
+        echo "Iniciando el servicio"
+        #TODO: Cuando se inicie que llame al script y pasandole las carpetas FOLDER_X:
+        ./home/dit/prueba.sh &
+	;;
   stop)
         stop
         ;;
