@@ -110,16 +110,32 @@ busca_margen()
     busca_lineas 1 lines_bueno.mvg
     #Una vez tenemos el fichero auxiliar con las lineas:
     lineas=$(cat fichero_lineas.txt | grep "line")
-    convert aux.png -stroke yellow -strokewidth 4 -draw "$lineas" aux2.png
-    convert $1 -stroke yellow -strokewidth 4 -draw "$lineas" $1 
+    convert aux.png -stroke red -strokewidth 10 -draw "$lineas" aux2.png
+    convert $1 -stroke red -strokewidth 10 -draw "$lineas" border.png 
+
+    ##Hacemos una copia de la imagen real en png y pintamos el centro de blanco.
+    convert border.png -fill white -bordercolor red -draw 'color 200,200 filltoborder' border_white.png
+    #Comparamos la imagen real (sin blanco) con la que tiene el centro de blanco.
+    compare -compose src border_white.png border.png comparison.png
+    #Autotrim 
+    convert -trim comparison.png -fuzz 10% -bordercolor red trim.png
+    #Extraemos las coordenadas de la mascara:
+    coor1=$(identify trim.png | awk '{print $3}')
+    coor2=$(identify trim.png | awk '{print $4}' | awk -F'+' '{print $2}')
+    coor3=$(identify trim.png | awk '{print $4}' | awk -F'+' '{print $3}')
+    coor=$coor1"+"$coor2"+"$coor3
+    #Extraemos la imagen definitiva de la que no tiene bordes pintados:
+    convert -extract $coor $1 final.png
 }
 borra_aux() 
 {
- rm -rf fichero_lineas.txt *.png *.mvg
+ rm -rf fichero_lineas.txt *.mvg
 }
 #Como parametro recibe 0 (horizontales)/ 1 (verticales) y el fichero .mvg
 busca_lineas()
 {
+  #Variable que utilizaremos para indicar el max.valor de pendiente que aceptaremos
+  tol=0.3
   if [ $1 == 0 ]; then
      echo "Buscando lineas horizontales..."
      horizontales=$(cat lines_bueno.mvg | grep "line 0" | cut -d "#" -f 1)
@@ -133,14 +149,15 @@ busca_lineas()
      do
         #Nos quedamos con la lineas potencialmente horizontales:
         name="$line"
-        #echo $(echo $name| grep ",0")
+        echo $(echo $name| grep ",0")
         inicio=$(echo $name | grep ",0" | cut -d " " -f 2 | cut -d "." -f 1 | cut -d "," -f 1)
         fin=$(echo $name | grep ",0" | cut -d " " -f 3 | cut -d "." -f 1 | cut -d "," -f 1)
         echo "¿ $inicio == $fin?"
         if [ ! -z  $inicio  ] && [ $inicio == $fin ]; then
-	   #echo "ENTRA"
+	   echo "ENTRA"
            echo $name >> fichero_lineas.txt
         fi
+	#Comparamos las pendientes para saber si es candidata:       
         done < "$filename"
   fi
 }
