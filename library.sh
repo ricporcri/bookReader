@@ -1,54 +1,11 @@
 #!/bin/bash
-dir_izq_aux="img_izq_aux"
-dir_drch_aux="img_drch_aux"
-dir_izq="img_izq"
-dir_drch="img_drch"
-dir_final="imgs"
-dir_pdf="pdf"
-
-##################################################
-# Función que prepara el entorno de trabajo      #
-# Salida:                                        #
-#    - Todos los directorios creados.            #   
-##################################################
-prepara_entorno()
-{
-   #Creamos el directorio destino si no existe:
-   if [ -d $dir_izq  ]; then
-      #Si existe lo borramos
-      rm -r $dir_izq
-   fi
-   if [ -d $dir_drch  ]; then
-      #Si existe lo borramos
-      rm -r $dir_drch
-   fi
-   if [ -d $dir_final  ]; then
-      #Si existe lo borramos
-      rm -r $dir_final
-   fi
-   if [ -d $dir_pdf  ]; then
-      #Si existe lo borramos
-      rm -r $dir_pdf
-   fi
-   if [ -d $dir_drch_aux  ]; then
-      #Si existe lo borramos
-      rm -r $dir_drch_aux
-   fi
-   if [ -d $dir_izq_aux  ]; then
-      #Si existe lo borramos
-      rm -r $dir_izq_aux
-   fi
-
-   #Creamos solo las carpetas contenedoras de las imagenes:
-   mkdir $dir_drch
-   mkdir $dir_izq
-}
 
 ##################################################
 # Función para convertir todas las fotos a pdf   #
 # Argumentos:                                    #
 #    -Carpeta contenedora de todas las imagenes  #
 #     maquetadas.                                #
+#    -Carpeta destino.                           #
 # Salida:                                        #
 #    - Todas las imagenes en un pdf en una nueva #
 #      carpeta (dir_pdf).                        #   
@@ -60,25 +17,17 @@ pdf_convert()
    echo $images
    echo "Pasando a PDF..."
    convert $images result.pdf
+   mv result.pdf $2
 }
-########PROVISIONAL#####
-auto_mv()
-{
-  image=`ls $dir_izq_aux`
-  maqueta $image
-  mv $image $dir_izq/$image
-  
-  image=`ls $dir_drch_aux`
-  maqueta $image
-  mv $image $dir_drch/$image
-  
-}
-<<COMMENT
-maqueta()
+##################################################
+# Función para mandar pdf por mail               #
+# Argumentos:                                    #
+#    -PDF a enviar por correo                    #  
+##################################################
+send_mail()
 {
 
 }
-COMMENT
 
 ##################################################
 # Función para reducir las dimensiones de        #
@@ -129,7 +78,7 @@ busca_margen()
 }
 borra_aux() 
 {
- rm -rf fichero_lineas.txt *.mvg
+ rm -rf *.txt *.mvg
 }
 #Como parametro recibe 0 (horizontales)/ 1 (verticales) y el fichero .mvg
 busca_lineas()
@@ -161,25 +110,28 @@ busca_lineas()
         done < "$filename"
   fi
 }
-crea_mascara()
-{
-  echo "Creando mascara..."
-  convert $1 -colorspace gray \( +clone -blur 0x2 \) +swap -compose divide -composite -linear-stretch 5%x0% -threshold 5% -trim mask.png
-
- # echo "Creando mascara negra..."
-#convert $1 -colorspace gray \( +clone -blur 0x2 \) +swap -compose divide -composite -linear-stretch 5%x0% -threshold 5% \( -clone -fill '#000000' -colorize 100 \) -delete 0 black-mask.png
-
-}
 
 ##Recibe como parámetro el directorio donde escuchara si se recibe algun 
-##fichero y el directorio destino
+##fichero y el directorio destino.
+
+#Como tenemos dos carpetas de montaje, para evitar el consumo
+# de procesamiento, implementamos una espera activa, mediante semaforos:
 auto_detect()
 {
+   lockdir=/tmp/myscript.lock
+   if mkdir "$lockdir"
+    then    # directory did not exist, but was created successfully
+       echo >&2 "successfully acquired lock: $lockdir"
+       # continue script
+   else    # failed to create the directory, presumably because it already exists
+     echo >&2 "cannot acquire lock, giving up on $lockdir"
+     exit 0
+   fi
   num_fich=$(ls $1| wc -l)
   fich=$(ls $1)
   #echo $num_fich
   if [ $num_fich == 1 ]; then
-	#En el caso de que entre(suponiendo $2 mismo directorio de work):
+	#En el caso de que entre(suponiendo $2 mismo directorio de trabajo):
         mv $1/$fich $2
         cd $2
         hazlo_todo $fich
